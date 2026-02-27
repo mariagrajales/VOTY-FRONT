@@ -8,9 +8,9 @@ data class LoginRequest(
 )
 
 data class RegisterRequest(
-    val email: String,
-    val name: String,
-    val password: String
+    @SerializedName("email") val email: String,
+    @SerializedName("name") val name: String,
+    @SerializedName("password") val password: String
 )
 
 data class AuthResponse(

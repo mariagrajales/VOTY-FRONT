@@ -6,6 +6,7 @@ import com.example.votacion.features.auth.data.models.RegisterRequest
 import com.example.votacion.features.auth.data.network.AuthService
 import com.example.votacion.core.data.AuthPreferences
 import com.example.votacion.core.data.TokenManager
+import retrofit2.HttpException
 import javax.inject.Inject
 
 class AuthRepository @Inject constructor(
@@ -14,19 +15,15 @@ class AuthRepository @Inject constructor(
     private val tokenManager: TokenManager
 ) {
     suspend fun register(email: String, name: String, password: String): AuthResponse {
-        val request = RegisterRequest(email, name, password)
-        android.util.Log.d("AuthRepository", "Registering new user: $email")
-        val response = authService.register(request)
-        android.util.Log.d("AuthRepository", "Register response received with token: ${response.token.take(20)}... (Length: ${response.token.length})")
-        
-        // Save token using TokenManager (synchronous, encrypted)
-        tokenManager.saveToken(response.token)
-        
-        // Save user data
-        authPreferences.saveUser(response.user.id, response.user.email, response.user.name)
-        android.util.Log.d("AuthRepository", "Token and user data saved")
-        
-        return response
+        try {
+            val request = RegisterRequest(email = email, name = name, password = password)
+            return authService.register(request)
+        } catch (e: HttpException) {
+            // ESTO ES CLAVE: Extraer el mensaje real del servidor
+            val errorJson = e.response()?.errorBody()?.string()
+            android.util.Log.e("AuthRepository", "API Error 400 Detail: $errorJson")
+            throw e
+        }
     }
 
     suspend fun login(email: String, password: String): AuthResponse {
@@ -35,10 +32,7 @@ class AuthRepository @Inject constructor(
         val response = authService.login(request)
         android.util.Log.d("AuthRepository", "Login response received with token: ${response.token.take(20)}... (Length: ${response.token.length})")
         
-        // Save token using TokenManager (synchronous, encrypted)
         tokenManager.saveToken(response.token)
-        
-        // Save user data
         authPreferences.saveUser(response.user.id, response.user.email, response.user.name)
         android.util.Log.d("AuthRepository", "Token and user data saved")
         
