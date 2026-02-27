@@ -24,3 +24,10 @@ data class CreatePollRequest(
     val title: String,
     val options: List<String>
 )
+
+data class UpdatePollRequest(
+    val title: String,
+    @SerializedName("is_open")
+    val isOpen: Boolean,
+    val options: List<String>? = null
+)

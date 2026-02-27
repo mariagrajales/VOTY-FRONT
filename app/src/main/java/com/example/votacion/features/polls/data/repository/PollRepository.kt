@@ -2,7 +2,9 @@ package com.example.votacion.features.polls.data.repository
 
 import com.example.votacion.features.polls.data.models.CreatePollRequest
 import com.example.votacion.features.polls.data.models.PollOutput
+import com.example.votacion.features.polls.data.models.UpdatePollRequest
 import com.example.votacion.features.polls.data.network.PollService
+import retrofit2.Response
 import javax.inject.Inject
 
 class PollRepository @Inject constructor(
@@ -20,21 +22,17 @@ class PollRepository @Inject constructor(
         return pollService.getPoll(id)
     }
 
-    suspend fun createPoll(title: String, options: List<String>): PollOutput? {
+    suspend fun createPoll(title: String, options: List<String>): Response<PollOutput> {
         android.util.Log.d("PollRepository", "Creating poll: $title with ${options.size} options")
         return pollService.createPoll(CreatePollRequest(title, options))
     }
 
-    suspend fun updatePoll(id: String, title: String, isOpen: Boolean, options: List<String>? = null): PollOutput? {
-        android.util.Log.d("PollRepository", "Updating poll: $id, title: $title, isOpen: $isOpen")
-        val body = mutableMapOf<String, Any>(
-            "title" to title,
-            "is_open" to isOpen
-        )
-        if (options != null) {
-            body["options"] = options
+    suspend fun updatePoll(id: String, title: String, isOpen: Boolean, options: List<String>?): Response<PollOutput> {
+        val response = pollService.updatePoll(id, UpdatePollRequest(title, isOpen, options))
+        if (!response.isSuccessful) {
+            throw Exception("Error del servidor: ${response.code()}")
         }
-        return pollService.updatePoll(id, body)
+        return response
     }
 
     suspend fun deletePoll(id: String) {

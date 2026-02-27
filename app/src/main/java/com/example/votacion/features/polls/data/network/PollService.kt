@@ -2,13 +2,14 @@ package com.example.votacion.features.polls.data.network
 
 import com.example.votacion.features.polls.data.models.*
 import retrofit2.http.*
+import retrofit2.Response
 
 interface PollService {
     @GET("polls")
     suspend fun listPolls(): List<PollOutput>
 
     @POST("polls")
-    suspend fun createPoll(@Body request: CreatePollRequest): PollOutput?
+    suspend fun createPoll(@Body request: CreatePollRequest): Response<PollOutput>
 
     @GET("polls/{id}")
     suspend fun getPoll(@Path("id") id: String): PollOutput
@@ -16,8 +17,8 @@ interface PollService {
     @PUT("polls/{id}")
     suspend fun updatePoll(
         @Path("id") id: String,
-        @Body request: Map<String, Any>
-    ): PollOutput?
+        @Body request: UpdatePollRequest
+    ): Response<PollOutput>
 
     @DELETE("polls/{id}")
     suspend fun deletePoll(@Path("id") id: String): Unit
