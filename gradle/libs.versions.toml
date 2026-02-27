@@ -1,5 +1,5 @@
 [versions]
-agp = "9.0.0"
+agp = "9.0.1"
 coreKtx = "1.17.0"
 junit = "4.13.2"
 junitVersion = "1.3.0"
@@ -21,7 +21,7 @@ socketIoClient = "2.1.0"
 secretsGradle = "2.0.1"
 hilt = "2.59.1"
 hiltNavigationCompose = "1.3.0"     # Procesador de anotaciones (puedes usar kapt o ksp)
-ksp = "2.2.10-2.0.2"                # Compatible con Kotlin 2.2.10
+ksp = "2.3.2"                # Compatible con Kotlin 2.2.10
 
 
 [libraries]
