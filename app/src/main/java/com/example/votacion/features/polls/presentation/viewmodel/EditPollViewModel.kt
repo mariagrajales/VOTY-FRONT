@@ -20,7 +20,8 @@ data class EditPollUiState(
     val isOpen: Boolean = true,
     val isLoading: Boolean = false,
     val error: String? = null,
-    val success: Boolean = false
+    val success: Boolean = false,
+    val canEditOptions: Boolean = true
 )
 
 @HiltViewModel
@@ -43,21 +44,23 @@ class EditPollViewModel @Inject constructor(
             try {
                 _uiState.update { it.copy(isLoading = true, error = null) }
                 val poll = pollRepository.getPoll(id)
-                _uiState.update { 
+
+                val totalVotes = poll.options.sumOf { it.votesCount ?: 0 }
+                val hasVotes = totalVotes > 0
+
+                _uiState.update {
                     it.copy(
                         poll = poll,
                         title = poll.title,
                         options = poll.options.map { it.text },
                         isOpen = poll.isOpen,
-                        isLoading = false
+                        isLoading = false,
+                        canEditOptions = !hasVotes
                     )
                 }
             } catch (e: Exception) {
-                _uiState.update { 
-                    it.copy(
-                        isLoading = false,
-                        error = e.message ?: "Error al cargar la encuesta"
-                    )
+                _uiState.update {
+                    it.copy(isLoading = false, error = e.message ?: "Error al cargar")
                 }
             }
         }

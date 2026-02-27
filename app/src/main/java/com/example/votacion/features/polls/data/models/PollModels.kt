@@ -11,7 +11,9 @@ data class PollOutput(
     val selectedOptionId: String? = null,
     @SerializedName("is_open")
     val isOpen: Boolean
-)
+){
+    val hasVotes: Boolean get() = options.any { it.votesCount > 0 }
+}
 
 data class OptionOutput(
     val id: String,

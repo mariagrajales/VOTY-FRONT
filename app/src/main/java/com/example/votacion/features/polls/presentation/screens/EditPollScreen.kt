@@ -64,7 +64,30 @@ fun EditPollScreen(
                     .padding(paddingValues)
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
+
             ) {
+                item {
+                    if (!uiState.canEditOptions && !uiState.isLoading) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.tertiaryContainer,
+                            shape = MaterialTheme.shapes.medium,
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    "⚠️ Edición Restringida",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                                )
+                                Text(
+                                    "Esta encuesta ya tiene votos registrados. Para proteger la integridad de los resultados, no es posible modificar la informacion de la encuesta.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                                )
+                            }
+                        }
+                    }
+                }
                 item {
                     Text(
                         "Título de la encuesta",
@@ -75,7 +98,7 @@ fun EditPollScreen(
                         onValueChange = { viewModel.updateTitle(it) },
                         placeholder = { Text("Ej: ¿Cuál es tu comida favorita?") },
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = !uiState.isLoading,
+                        enabled = !uiState.isLoading && uiState.canEditOptions,
                         maxLines = 2
                     )
                 }
@@ -85,8 +108,8 @@ fun EditPollScreen(
                         onClick = { viewModel.toggleOpen() },
                         shape = MaterialTheme.shapes.medium,
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                        enabled = !uiState.isLoading
-                    ) {
+                        enabled = !uiState.isLoading && uiState.canEditOptions
+                        ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -96,13 +119,13 @@ fun EditPollScreen(
                             Switch(
                                 checked = uiState.isOpen,
                                 onCheckedChange = { viewModel.toggleOpen() },
-                                enabled = !uiState.isLoading
-                            )
+                                enabled = !uiState.isLoading && uiState.canEditOptions
+                                )
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
                                 if (uiState.isOpen) "La encuesta está abierta para votar" 
                                 else "La encuesta está cerrada",
-                                style = MaterialTheme.typography.bodyMedium
+                                style = MaterialTheme.typography.bodyMedium,
                             )
                         }
                     }
@@ -128,14 +151,14 @@ fun EditPollScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .height(64.dp),
-                            enabled = !uiState.isLoading,
+                            enabled = !uiState.isLoading && uiState.canEditOptions,
                             maxLines = 1
                         )
 
                         if (uiState.options.size > 2) {
                             IconButton(
                                 onClick = { viewModel.removeOption(index) },
-                                enabled = !uiState.isLoading
+                                enabled = !uiState.isLoading && uiState.canEditOptions
                             ) {
                                 Icon(
                                     Icons.Default.Close,
@@ -151,7 +174,7 @@ fun EditPollScreen(
                     TextButton(
                         onClick = { viewModel.addOption() },
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = !uiState.isLoading
+                        enabled = !uiState.isLoading && uiState.canEditOptions
                     ) {
                         Icon(Icons.Default.Add, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
@@ -183,7 +206,8 @@ fun EditPollScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(50.dp),
-                        enabled = !uiState.isLoading && uiState.title.isNotBlank()
+                        enabled = !uiState.isLoading && uiState.title.isNotBlank() &&
+                                (uiState.canEditOptions || uiState.poll?.isOpen != uiState.isOpen)
                     ) {
                         if (uiState.isLoading) {
                             CircularProgressIndicator(
