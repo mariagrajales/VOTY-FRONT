@@ -6,14 +6,14 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.votacion.features.auth.presentation.viewmodel.AuthViewModel
 
 @Composable
@@ -22,9 +22,7 @@ fun LoginScreen(
     onLoginSuccess: () -> Unit,
     onNavigateToRegister: () -> Unit
 ) {
-    val uiState = viewModel.uiState.value
-    val (email, setEmail) = remember { mutableStateOf("") }
-    val (password, setPassword) = remember { mutableStateOf("") }
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     
     LaunchedEffect(uiState.isAuthenticated) {
         if (uiState.isAuthenticated) {
@@ -52,11 +50,8 @@ fun LoginScreen(
             )
 
             OutlinedTextField(
-                value = email,
-                onValueChange = { 
-                    setEmail(it)
-                    viewModel.updateEmail(it)
-                },
+                value = uiState.email,
+                onValueChange = { viewModel.updateEmail(it) },
                 label = { Text("Correo electrónico") },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !uiState.isLoading,
@@ -65,11 +60,8 @@ fun LoginScreen(
             )
 
             OutlinedTextField(
-                value = password,
-                onValueChange = { 
-                    setPassword(it)
-                    viewModel.updatePassword(it)
-                },
+                value = uiState.password,
+                onValueChange = { viewModel.updatePassword(it) },
                 label = { Text("Contraseña") },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !uiState.isLoading,
@@ -89,12 +81,12 @@ fun LoginScreen(
 
             Button(
                 onClick = {
-                    viewModel.login(email, password)
+                    viewModel.login(uiState.email, uiState.password)
                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
-                enabled = !uiState.isLoading && email.isNotEmpty() && password.isNotEmpty()
+                enabled = !uiState.isLoading && uiState.email.isNotEmpty() && uiState.password.isNotEmpty()
             ) {
                 if (uiState.isLoading) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary)

@@ -2,10 +2,12 @@ package com.example.votacion.features.polls.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.State
 import com.example.votacion.features.polls.data.repository.PollRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -22,64 +24,66 @@ class CreatePollViewModel @Inject constructor(
     private val pollRepository: PollRepository
 ) : ViewModel() {
 
-    private val _uiState = mutableStateOf(CreatePollUiState())
-    val uiState: State<CreatePollUiState> = _uiState
+    private val _uiState = MutableStateFlow(CreatePollUiState())
+    val uiState: StateFlow<CreatePollUiState> = _uiState.asStateFlow()
 
     fun updateTitle(title: String) {
-        _uiState.value = _uiState.value.copy(title = title)
+        _uiState.update { it.copy(title = title) }
     }
 
     fun updateOption(index: Int, text: String) {
-        val newOptions = _uiState.value.options.toMutableList()
-        if (index < newOptions.size) {
-            newOptions[index] = text
+        _uiState.update { state ->
+            val newOptions = state.options.toMutableList()
+            if (index < newOptions.size) {
+                newOptions[index] = text
+            }
+            state.copy(options = newOptions)
         }
-        _uiState.value = _uiState.value.copy(options = newOptions)
     }
 
     fun addOption() {
-        val newOptions = _uiState.value.options.toMutableList()
-        newOptions.add("")
-        _uiState.value = _uiState.value.copy(options = newOptions)
+        _uiState.update { state ->
+            state.copy(options = state.options + "")
+        }
     }
 
     fun removeOption(index: Int) {
-        if (_uiState.value.options.size > 2) {
-            val newOptions = _uiState.value.options.toMutableList()
-            newOptions.removeAt(index)
-            _uiState.value = _uiState.value.copy(options = newOptions)
+        _uiState.update { state ->
+            if (state.options.size > 2) {
+                val newOptions = state.options.toMutableList()
+                newOptions.removeAt(index)
+                state.copy(options = newOptions)
+            } else {
+                state
+            }
         }
     }
 
     fun createPoll() {
         viewModelScope.launch {
+            val currentState = _uiState.value
+            if (currentState.title.isBlank()) {
+                _uiState.update { it.copy(error = "El título es requerido") }
+                return@launch
+            }
+
+            val nonEmptyOptions = currentState.options.filter { it.isNotBlank() }
+            if (nonEmptyOptions.size < 2) {
+                _uiState.update { it.copy(error = "Se requieren al menos 2 opciones") }
+                return@launch
+            }
+
             try {
-                if (_uiState.value.title.isBlank()) {
-                    _uiState.value = _uiState.value.copy(error = "El título es requerido")
-                    return@launch
-                }
-
-                val nonEmptyOptions = _uiState.value.options.filter { it.isNotBlank() }
-                if (nonEmptyOptions.size < 2) {
-                    _uiState.value = _uiState.value.copy(error = "Se requieren al menos 2 opciones")
-                    return@launch
-                }
-
-                _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-                android.util.Log.d("CreatePollViewModel", "Creating poll with title: ${_uiState.value.title}")
-                pollRepository.createPoll(_uiState.value.title, nonEmptyOptions)
-                android.util.Log.d("CreatePollViewModel", "Poll created successfully")
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    success = true,
-                    error = null
-                )
+                _uiState.update { it.copy(isLoading = true, error = null) }
+                pollRepository.createPoll(currentState.title, nonEmptyOptions)
+                _uiState.update { it.copy(isLoading = false, success = true, error = null) }
             } catch (e: Exception) {
-                android.util.Log.e("CreatePollViewModel", "Error creating poll", e)
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = e.message ?: "Error al crear la encuesta"
-                )
+                _uiState.update { 
+                    it.copy(
+                        isLoading = false, 
+                        error = e.message ?: "Error al crear la encuesta"
+                    ) 
+                }
             }
         }
     }

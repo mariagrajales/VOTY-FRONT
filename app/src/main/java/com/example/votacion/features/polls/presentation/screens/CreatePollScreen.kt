@@ -12,10 +12,12 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.votacion.features.polls.presentation.viewmodel.CreatePollViewModel
 
 @Composable
@@ -24,7 +26,7 @@ fun CreatePollScreen(
     onSuccess: () -> Unit,
     onBack: () -> Unit
 ) {
-    val uiState = viewModel.uiState.value
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(uiState.success) {
         if (uiState.success) {
@@ -54,12 +56,12 @@ fun CreatePollScreen(
             item {
                 Text(
                     "Título de la encuesta",
-                    style = MaterialTheme.typography.labelMedium
+                    style = MaterialTheme.typography.titleSmall
                 )
                 OutlinedTextField(
                     value = uiState.title,
                     onValueChange = { viewModel.updateTitle(it) },
-                    label = { Text("Ej: ¿Cuál es tu comida favorita?") },
+                    placeholder = { Text("Ej: ¿Cuál es tu comida favorita?") },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !uiState.isLoading,
                     maxLines = 2
@@ -69,7 +71,7 @@ fun CreatePollScreen(
             item {
                 Text(
                     "Opciones de voto (mínimo 2)",
-                    style = MaterialTheme.typography.labelMedium
+                    style = MaterialTheme.typography.titleSmall
                 )
             }
 
@@ -85,7 +87,7 @@ fun CreatePollScreen(
                         label = { Text("Opción ${index + 1}") },
                         modifier = Modifier
                             .weight(1f)
-                            .height(56.dp),
+                            .height(64.dp),
                         enabled = !uiState.isLoading,
                         maxLines = 1
                     )
@@ -93,22 +95,25 @@ fun CreatePollScreen(
                     if (uiState.options.size > 2) {
                         IconButton(
                             onClick = { viewModel.removeOption(index) },
-                            modifier = Modifier.size(40.dp),
                             enabled = !uiState.isLoading
                         ) {
-                            Icon(Icons.Default.Close, contentDescription = "Eliminar opción")
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Eliminar opción",
+                                tint = MaterialTheme.colorScheme.error
+                            )
                         }
                     }
                 }
             }
 
             item {
-                Button(
+                TextButton(
                     onClick = { viewModel.addOption() },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !uiState.isLoading
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "Añadir")
+                    Icon(Icons.Default.Add, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Añadir opción")
                 }
@@ -116,15 +121,18 @@ fun CreatePollScreen(
 
             if (!uiState.error.isNullOrEmpty()) {
                 item {
-                    Text(
-                        uiState.error!!,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.errorContainer)
-                            .padding(12.dp)
-                    )
+                    Surface(
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        shape = MaterialTheme.shapes.small,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            uiState.error!!,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(12.dp)
+                        )
+                    }
                 }
             }
 
@@ -140,7 +148,8 @@ fun CreatePollScreen(
                     if (uiState.isLoading) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(20.dp),
-                            color = MaterialTheme.colorScheme.onPrimary
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp
                         )
                     } else {
                         Text("Crear encuesta")
