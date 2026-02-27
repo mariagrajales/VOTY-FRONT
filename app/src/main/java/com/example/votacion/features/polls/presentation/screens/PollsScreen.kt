@@ -2,7 +2,6 @@
 
 package com.example.votacion.features.polls.presentation.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -14,11 +13,13 @@ import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.votacion.features.polls.data.models.PollOutput
 import com.example.votacion.features.auth.presentation.viewmodel.AuthViewModel
 import com.example.votacion.features.polls.presentation.viewmodel.PollsViewModel
@@ -31,9 +32,9 @@ fun PollsScreen(
     onNavigateToEditPoll: (String) -> Unit,
     onLogout: () -> Unit
 ) {
-    val uiState = pollsViewModel.uiState.value
+    val uiState by pollsViewModel.uiState.collectAsStateWithLifecycle()
 
-    // refresh when screen enters
+    // Refresh when screen enters
     LaunchedEffect(Unit) {
         pollsViewModel.loadPolls()
     }
@@ -93,10 +94,11 @@ fun PollsScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(vertical = 16.dp)
             ) {
-                items(uiState.polls) { poll ->
+                items(uiState.polls, key = { it.id }) { poll ->
                     PollCard(
                         poll = poll,
                         onVote = { optionId ->
@@ -132,41 +134,44 @@ fun PollCard(
     onDelete: (() -> Unit)? = null
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(0.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // optional action row
-            if (onEdit != null || onDelete != null) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    poll.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                
+                Row {
                     if (onEdit != null) {
                         IconButton(onClick = onEdit) {
-                            Icon(Icons.Default.Edit, contentDescription = "Editar")
+                            Icon(Icons.Default.Edit, contentDescription = "Editar", modifier = Modifier.size(20.dp))
                         }
                     }
                     if (onDelete != null) {
                         IconButton(onClick = onDelete) {
-                            Icon(Icons.Default.Delete, contentDescription = "Eliminar")
+                            Icon(Icons.Default.Delete, contentDescription = "Eliminar", modifier = Modifier.size(20.dp))
                         }
                     }
                 }
             }
-            Text(
-                poll.title,
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(bottom = 12.dp)
-            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            val totalVotes = poll.options.sumOf { it.votesCount }
 
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -176,28 +181,37 @@ fun PollCard(
                     PollOptionItem(
                         option = option,
                         isVoted = poll.voted && poll.selectedOptionId == option.id,
-                        totalVotes = poll.options.sumOf { it.votesCount },
+                        totalVotes = totalVotes,
                         onVote = { onVote(option.id) },
                         isEnabled = !poll.voted && poll.isOpen
                     )
                 }
             }
 
-            if (poll.voted) {
-                Text(
-                    "Ya has votado",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(top = 12.dp)
-                )
-            }
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                if (poll.voted) {
+                    Text(
+                        "✓ Ya has votado",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
 
-            if (!poll.isOpen) {
+                if (!poll.isOpen) {
+                    Text(
+                        "Encuesta cerrada",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                
                 Text(
-                    "Encuesta cerrada",
+                    "$totalVotes votos totales",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(top = 12.dp)
+                    color = MaterialTheme.colorScheme.outline
                 )
             }
         }
@@ -218,15 +232,16 @@ fun PollOptionItem(
         0
     }
 
-    Button(
+    OutlinedButton(
         onClick = onVote,
         enabled = isEnabled,
         modifier = Modifier
             .fillMaxWidth()
             .height(50.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (isVoted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer
-        )
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = if (isVoted) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+        ),
+        border = if (isVoted) null else ButtonDefaults.outlinedButtonBorder
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -237,21 +252,15 @@ fun PollOptionItem(
                 option.text,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                color = if (isVoted) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Column(
-                horizontalAlignment = Alignment.End
-            ) {
-                Text(
-                    "${option.votesCount} votos",
-                    style = MaterialTheme.typography.labelSmall
-                )
-                Text(
-                    "$percentage%",
-                    style = MaterialTheme.typography.labelSmall
-                )
-            }
+            Text(
+                "$percentage%",
+                style = MaterialTheme.typography.labelMedium,
+                color = if (isVoted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

@@ -10,7 +10,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -19,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.votacion.features.polls.presentation.viewmodel.EditPollViewModel
 
 @Composable
@@ -28,7 +28,7 @@ fun EditPollScreen(
     onDelete: () -> Unit,
     onBack: () -> Unit
 ) {
-    val uiState by viewModel.uiState
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(uiState.success) {
         if (uiState.success) {
@@ -53,119 +53,147 @@ fun EditPollScreen(
             )
         }
     ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            item {
-                Text(
-                    "Título de la encuesta",
-                    style = MaterialTheme.typography.labelMedium
-                )
-                OutlinedTextField(
-                    value = uiState.title,
-                    onValueChange = { viewModel.updateTitle(it) },
-                    label = { Text("Ej: ¿Cuál es tu comida favorita?") },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !uiState.isLoading,
-                    maxLines = 2
-                )
+        if (uiState.isLoading && uiState.poll == null) {
+            Box(modifier = Modifier.fillMaxSize().padding(paddingValues), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
             }
-
-            item {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(
-                        checked = uiState.isOpen,
-                        onCheckedChange = { viewModel.toggleOpen() }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                item {
+                    Text(
+                        "Título de la encuesta",
+                        style = MaterialTheme.typography.titleSmall
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Encuesta abierta")
-                }
-            }
-
-            item {
-                Text(
-                    "Opciones de voto (mínimo 2)",
-                    style = MaterialTheme.typography.labelMedium
-                )
-            }
-
-            itemsIndexed(uiState.options) { index, option ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
                     OutlinedTextField(
-                        value = option,
-                        onValueChange = { viewModel.updateOption(index, it) },
-                        label = { Text("Opción ${index + 1}") },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(56.dp),
+                        value = uiState.title,
+                        onValueChange = { viewModel.updateTitle(it) },
+                        placeholder = { Text("Ej: ¿Cuál es tu comida favorita?") },
+                        modifier = Modifier.fillMaxWidth(),
                         enabled = !uiState.isLoading,
-                        maxLines = 1
+                        maxLines = 2
                     )
+                }
 
-                    if (uiState.options.size > 2) {
-                        IconButton(
-                            onClick = { viewModel.removeOption(index) },
-                            modifier = Modifier.size(40.dp),
-                            enabled = !uiState.isLoading
+                item {
+                    Surface(
+                        onClick = { viewModel.toggleOpen() },
+                        shape = MaterialTheme.shapes.medium,
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        enabled = !uiState.isLoading
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Close, contentDescription = "Eliminar opción")
+                            Switch(
+                                checked = uiState.isOpen,
+                                onCheckedChange = { viewModel.toggleOpen() },
+                                enabled = !uiState.isLoading
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                if (uiState.isOpen) "La encuesta está abierta para votar" 
+                                else "La encuesta está cerrada",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
                         }
                     }
                 }
-            }
 
-            item {
-                Button(
-                    onClick = { viewModel.addOption() },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !uiState.isLoading
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "Añadir")
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Añadir opción")
-                }
-            }
-
-            if (!uiState.error.isNullOrEmpty()) {
                 item {
                     Text(
-                        uiState.error!!,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.errorContainer)
-                            .padding(12.dp)
+                        "Opciones de voto (mínimo 2)",
+                        style = MaterialTheme.typography.titleSmall
                     )
                 }
-            }
 
-            item {
-                Spacer(modifier = Modifier.height(16.dp))
-                Button(
-                    onClick = { viewModel.saveChanges() },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
-                    enabled = !uiState.isLoading && uiState.title.isNotBlank()
-                ) {
-                    if (uiState.isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = MaterialTheme.colorScheme.onPrimary
+                itemsIndexed(uiState.options) { index, option ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = option,
+                            onValueChange = { viewModel.updateOption(index, it) },
+                            label = { Text("Opción ${index + 1}") },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(64.dp),
+                            enabled = !uiState.isLoading,
+                            maxLines = 1
                         )
-                    } else {
-                        Text("Guardar cambios")
+
+                        if (uiState.options.size > 2) {
+                            IconButton(
+                                onClick = { viewModel.removeOption(index) },
+                                enabled = !uiState.isLoading
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Eliminar opción",
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+                    }
+                }
+
+                item {
+                    TextButton(
+                        onClick = { viewModel.addOption() },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !uiState.isLoading
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Añadir opción")
+                    }
+                }
+
+                if (!uiState.error.isNullOrEmpty()) {
+                    item {
+                        Surface(
+                            color = MaterialTheme.colorScheme.errorContainer,
+                            shape = MaterialTheme.shapes.small,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                uiState.error!!,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                    }
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = { viewModel.saveChanges() },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp),
+                        enabled = !uiState.isLoading && uiState.title.isNotBlank()
+                    ) {
+                        if (uiState.isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text("Guardar cambios")
+                        }
                     }
                 }
             }

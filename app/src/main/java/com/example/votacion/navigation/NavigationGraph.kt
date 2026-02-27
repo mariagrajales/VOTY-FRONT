@@ -1,9 +1,11 @@
 package com.example.votacion.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.votacion.features.auth.presentation.screens.LoginScreen
 import com.example.votacion.features.auth.presentation.screens.RegisterScreen
 import com.example.votacion.features.polls.presentation.screens.PollsScreen
@@ -16,7 +18,8 @@ fun NavigationGraph(
     navController: NavHostController,
     authViewModel: AuthViewModel
 ) {
-    val uiState = authViewModel.uiState.value
+    val uiState by authViewModel.uiState.collectAsStateWithLifecycle()
+    
     val startDestination = if (uiState.isAuthenticated) {
         Screen.Polls.route
     } else {
@@ -57,9 +60,11 @@ fun NavigationGraph(
             PollsScreen(
                 onNavigateToCreatePoll = {
                     navController.navigate(Screen.CreatePoll.route)
-                },                onNavigateToEditPoll = { pollId ->
+                },
+                onNavigateToEditPoll = { pollId ->
                     navController.navigate(Screen.EditPoll.createRoute(pollId))
-                },                onLogout = {
+                },
+                onLogout = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.Polls.route) { inclusive = true }
                     }
@@ -81,7 +86,6 @@ fun NavigationGraph(
         }
 
         composable(Screen.EditPoll.route) { backStackEntry ->
-            val pollId = backStackEntry.arguments?.getString("pollId") ?: ""
             EditPollScreen(
                 onDone = {
                     navController.navigate(Screen.Polls.route) {
