@@ -12,49 +12,37 @@ class AuthInterceptor @Inject constructor(
     @ApplicationContext private val context: Context,
     private val tokenManager: TokenManager
 ) : Interceptor {
-    
+
     override fun intercept(chain: Interceptor.Chain): Response {
+        val originalRequest = chain.request()
+        val url = originalRequest.url.toString()
+
+        // ESCAPE: Si es login o register, no añadimos Authorization
+        if (url.contains("/login") || url.contains("/register")) {
+            Log.d("AuthInterceptor", "Skipping Auth header for: $url")
+            return chain.proceed(originalRequest)
+        }
+
         return try {
-            // Get token synchronously from EncryptedSharedPreferences
             val token = tokenManager.getToken()
-            
-            val originalRequest = chain.request()
-            Log.d("AuthInterceptor", "=== REQUEST ===")
-            Log.d("AuthInterceptor", "Method: ${originalRequest.method}")
-            Log.d("AuthInterceptor", "URL: ${originalRequest.url}")
-            Log.d("AuthInterceptor", "Headers: ${originalRequest.headers}")
-            
-            // Build request with required headers
-            // some endpoints (DELETE/PUT) expect application/problem+json in Accept
             val requestBuilder = originalRequest.newBuilder()
                 .header("Accept", "application/problem+json, application/json")
                 .header("Content-Type", "application/json")
-            
-            // Add Authorization header if token exists
-            if (token.isNotEmpty()) {
-                Log.d("AuthInterceptor", "✓ Token found (length: ${token.length}), adding Authorization header")
-                requestBuilder.header("Authorization", "Bearer $token")
-            } else {
-                Log.d("AuthInterceptor", "✗ No token found, proceeding without Authorization header")
-            }
-            
-            val request = requestBuilder.build()
 
-            val response = chain.proceed(request)
-            Log.d("AuthInterceptor", "=== RESPONSE ===")
-            Log.d("AuthInterceptor", "Code: ${response.code}")
-            Log.d("AuthInterceptor", "Message: ${response.message}")
-            Log.d("AuthInterceptor", "URL: ${response.request.url}")
-            
-            if (response.code >= 400) {
-                try {
-                    val body = response.peekBody(Long.MAX_VALUE).string()
-                    Log.d("AuthInterceptor", "Response Body: $body")
-                } catch (e: Exception) {
-                    Log.d("AuthInterceptor", "Could not read response body")
-                }
+            // Solo añadimos el token si realmente existe y no es login/register
+            if (!token.isNullOrEmpty()) {
+                Log.d("AuthInterceptor", "✓ Adding Token to: ${originalRequest.url}")
+                requestBuilder.header("Authorization", "Bearer $token")
             }
-            
+
+            val response = chain.proceed(requestBuilder.build())
+
+            // Log de errores para depuración
+            if (response.code >= 400) {
+                val body = response.peekBody(Long.MAX_VALUE).string()
+                Log.d("AuthInterceptor", "Error ${response.code} en ${response.request.url}: $body")
+            }
+
             response
         } catch (e: Exception) {
             Log.e("AuthInterceptor", "Error in AuthInterceptor", e)

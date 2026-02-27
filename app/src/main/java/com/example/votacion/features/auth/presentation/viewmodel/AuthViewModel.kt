@@ -87,23 +87,36 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-                android.util.Log.d("AuthViewModel", "Attempting register for $email")
                 authRepository.register(email, name, password)
-                android.util.Log.d("AuthViewModel", "Register successful, token saved to EncryptedSharedPreferences")
+
+                // IMPORTANTE: No ponemos isAuthenticated = true aquí
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    isAuthenticated = true,
-                    error = null,
-                    email = "",
+                    isAuthenticated = false, // El usuario aún debe loguearse
+                    error = "¡Cuenta creada! Por favor, inicia sesión.",
+                    email = email, // Opcional: dejamos el email para el login
                     password = "",
                     name = ""
                 )
-                android.util.Log.d("AuthViewModel", "Auth state updated to authenticated")
+                android.util.Log.d("AuthViewModel", "Register successful, staying in Register for navigation")
+            } catch (e: retrofit2.HttpException) {
+                // Extraemos el JSON de error que vimos en el Logcat
+                val errorBody = e.response()?.errorBody()?.string()
+                val userMessage = when {
+                    errorBody?.contains("email already registered") == true ->
+                        "Este correo ya está registrado. Intenta iniciar sesión."
+                    e.code() == 400 -> "Datos inválidos. Revisa el formato de tu correo o nombre."
+                    else -> "Error del servidor (${e.code()}). Inténtalo más tarde."
+                }
+
+                android.util.Log.e("AuthViewModel", "Register failed: $errorBody")
+                _uiState.value = _uiState.value.copy(isLoading = false, error = userMessage)
+
             } catch (e: Exception) {
-                android.util.Log.e("AuthViewModel", "Register failed", e)
+                android.util.Log.e("AuthViewModel", "Unexpected register error", e)
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = e.message ?: "Error al registrarse"
+                    error = "Sin conexión al servidor"
                 )
             }
         }
