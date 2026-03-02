@@ -19,7 +19,6 @@ class AuthRepository @Inject constructor(
             val request = RegisterRequest(email = email, name = name, password = password)
             return authService.register(request)
         } catch (e: HttpException) {
-            // ESTO ES CLAVE: Extraer el mensaje real del servidor
             val errorJson = e.response()?.errorBody()?.string()
             android.util.Log.e("AuthRepository", "API Error 400 Detail: $errorJson")
             throw e

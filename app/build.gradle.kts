@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.secrets.gradle)
     alias(libs.plugins.jetbrainsKotlinSerialization)
@@ -34,6 +35,10 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
+    }
+
+    kotlinOptions {
+        jvmTarget = "21"
     }
 
     buildFeatures {
@@ -73,12 +78,6 @@ ksp {
     arg("hilt.disableModulesHaveInstallInCheck", "true")
 }
 
-kotlin {
-    compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
-    }
-}
-
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -102,6 +101,12 @@ dependencies {
     implementation(libs.hilt.navigation.compose)                    // Integración con Jetpack Compose
     implementation(libs.io.socket.socket.io.client)                 // Socket.IO client
     implementation("androidx.security:security-crypto:1.1.0-alpha06") // EncryptedSharedPreferences
+    
+    // Room
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+
     ksp(libs.hilt.compiler)                                         // KSP
 
 
