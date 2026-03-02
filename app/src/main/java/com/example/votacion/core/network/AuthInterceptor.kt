@@ -17,7 +17,6 @@ class AuthInterceptor @Inject constructor(
         val originalRequest = chain.request()
         val url = originalRequest.url.toString()
 
-        // ESCAPE: Si es login o register, no añadimos Authorization
         if (url.contains("/login") || url.contains("/register")) {
             Log.d("AuthInterceptor", "Skipping Auth header for: $url")
             return chain.proceed(originalRequest)
@@ -29,7 +28,6 @@ class AuthInterceptor @Inject constructor(
                 .header("Accept", "application/problem+json, application/json")
                 .header("Content-Type", "application/json")
 
-            // Solo añadimos el token si realmente existe y no es login/register
             if (!token.isNullOrEmpty()) {
                 Log.d("AuthInterceptor", "✓ Adding Token to: ${originalRequest.url}")
                 requestBuilder.header("Authorization", "Bearer $token")
@@ -37,7 +35,6 @@ class AuthInterceptor @Inject constructor(
 
             val response = chain.proceed(requestBuilder.build())
 
-            // Log de errores para depuración
             if (response.code >= 400) {
                 val body = response.peekBody(Long.MAX_VALUE).string()
                 Log.d("AuthInterceptor", "Error ${response.code} en ${response.request.url}: $body")

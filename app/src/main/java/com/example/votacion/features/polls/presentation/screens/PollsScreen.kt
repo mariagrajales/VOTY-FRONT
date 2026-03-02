@@ -34,9 +34,8 @@ fun PollsScreen(
 ) {
     val uiState by pollsViewModel.uiState.collectAsStateWithLifecycle()
 
-    // Refresh when screen enters
     LaunchedEffect(Unit) {
-        pollsViewModel.loadPolls()
+        pollsViewModel.refreshPolls()
     }
 
     Scaffold(
