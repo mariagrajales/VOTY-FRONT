@@ -2,83 +2,100 @@ package com.example.votacion.features.polls.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.votacion.features.polls.data.models.PollOutput
-import com.example.votacion.features.polls.domain.repository.PollRepository
+import com.example.votacion.core.hardware.VibrationManager
+import com.example.votacion.features.polls.domain.usecase.CastVoteUseCase
+import com.example.votacion.features.polls.domain.usecase.DeletePollUseCase
+import com.example.votacion.features.polls.domain.usecase.GetPollsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-data class PollsUiState(
-    val polls: List<PollOutput> = emptyList(),
-    val isLoading: Boolean = false,
-    val isRefreshing: Boolean = false,
-    val error: String? = null
-)
-
-sealed class PollsEvent {
-    data class ShowError(val message: String) : PollsEvent()
-    object PollDeleted : PollsEvent()
-    object VoteCast : PollsEvent()
-}
-
 @HiltViewModel
 class PollsViewModel @Inject constructor(
-    private val pollRepository: PollRepository
+    private val getPollsUseCase: GetPollsUseCase,
+    private val castVoteUseCase: CastVoteUseCase,
+    private val deletePollUseCase: DeletePollUseCase,
+    private val vibrationManager: VibrationManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PollsUiState())
-    val uiState: StateFlow<PollsUiState> = _uiState.asStateFlow()
+    val uiState = _uiState.asStateFlow()
 
     private val _eventFlow = MutableSharedFlow<PollsEvent>()
-    val eventFlow: SharedFlow<PollsEvent> = _eventFlow.asSharedFlow()
+    val eventFlow = _eventFlow.asSharedFlow()
 
     init {
-        observePolls()
-        refreshPolls()
+        loadPolls()
     }
 
-    private fun observePolls() {
+    fun loadPolls() {
         viewModelScope.launch {
-            pollRepository.getPolls()
-                .catch { e ->
-                    _uiState.update { it.copy(error = e.message) }
-                }
-                .collect { polls ->
-                    _uiState.update { it.copy(polls = polls, isLoading = false) }
-                }
-        }
-    }
+            _uiState.update { it.copy(isLoading = true, error = null) }
 
-    fun refreshPolls() {
-        viewModelScope.launch {
-            try {
-                _uiState.update { it.copy(isRefreshing = true, error = null) }
-                pollRepository.refreshPolls()
-                _uiState.update { it.copy(isRefreshing = false) }
-            } catch (e: Exception) {
-                _uiState.update { 
-                    it.copy(
-                        isRefreshing = false, 
-                        error = e.message ?: "Error al sincronizar datos"
-                    ) 
-                }
-                _eventFlow.emit(PollsEvent.ShowError("No se pudo actualizar desde el servidor. Mostrando datos locales."))
+            // Si este devuelve Flow, se usa así:
+            getPollsUseCase().collect { result ->
+                result.fold(
+                    onSuccess = { polls ->
+                        _uiState.update { it.copy(polls = polls, isLoading = false) }
+                    },
+                    onFailure = { error ->
+                        _uiState.update { it.copy(error = error.message, isLoading = false) }
+                    }
+                )
             }
         }
     }
 
     fun castVote(pollId: String, optionId: String) {
         val previousPolls = _uiState.value.polls
-        
+
         // --- ACTUALIZACIÓN OPTIMISTA ---
+        applyOptimisticVote(pollId, optionId)
+
+        viewModelScope.launch {
+            val result = castVoteUseCase(pollId, optionId)
+            result.fold(
+                onSuccess = {
+                    vibrationManager.vibrateSuccess()
+                    _eventFlow.emit(PollsEvent.VoteCast)
+                },
+                onFailure = { error ->
+                    vibrationManager.vibrateError()
+                    // ROLLBACK: Si falla, regresamos al estado anterior
+                    _uiState.update { it.copy(polls = previousPolls) }
+                    _eventFlow.emit(PollsEvent.ShowError(error.message ?: "Error al votar"))
+                }
+            )
+        }
+    }
+
+    fun deletePoll(pollId: String) {
+        val previousPolls = _uiState.value.polls
+
+        // --- ACTUALIZACIÓN OPTIMISTA ---
+        _uiState.update { state ->
+            state.copy(polls = state.polls.filter { it.id != pollId })
+        }
+
+        viewModelScope.launch {
+            val result = deletePollUseCase(pollId)
+            result.fold(
+                onSuccess = {
+                    vibrationManager.vibrateSuccess()
+                    _eventFlow.emit(PollsEvent.PollDeleted)
+                },
+                onFailure = { error ->
+                    vibrationManager.vibrateError()
+                    // ROLLBACK
+                    _uiState.update { it.copy(polls = previousPolls) }
+                    _eventFlow.emit(PollsEvent.ShowError(error.message ?: "No se pudo eliminar"))
+                }
+            )
+        }
+    }
+
+    private fun applyOptimisticVote(pollId: String, optionId: String) {
         _uiState.update { state ->
             state.copy(
                 polls = state.polls.map { poll ->
@@ -86,50 +103,15 @@ class PollsViewModel @Inject constructor(
                         poll.copy(
                             voted = true,
                             selectedOptionId = optionId,
-                            options = poll.options.map { option ->
-                                if (option.id == optionId) {
-                                    option.copy(votesCount = option.votesCount + 1)
-                                } else {
-                                    option
-                                }
+                            totalVotes = poll.totalVotes + 1,
+                            options = poll.options.map { opt ->
+                                if (opt.id == optionId) opt.copy(votesCount = opt.votesCount + 1)
+                                else opt
                             }
                         )
-                    } else {
-                        poll
-                    }
+                    } else poll
                 }
             )
-        }
-
-        viewModelScope.launch {
-            try {
-                pollRepository.castVote(pollId, optionId)
-                _eventFlow.emit(PollsEvent.VoteCast)
-            } catch (e: Exception) {
-                // --- ROLLBACK (Reversión) ---
-                _uiState.update { it.copy(polls = previousPolls) }
-                _eventFlow.emit(PollsEvent.ShowError("Error al votar: ${e.message}. Se ha revertido el cambio."))
-            }
-        }
-    }
-
-    fun deletePoll(pollId: String) {
-        val previousPolls = _uiState.value.polls
-        
-        // Actualización optimista
-        _uiState.update { state ->
-            state.copy(polls = state.polls.filter { it.id != pollId })
-        }
-
-        viewModelScope.launch {
-            try {
-                pollRepository.deletePoll(pollId)
-                _eventFlow.emit(PollsEvent.PollDeleted)
-            } catch (e: Exception) {
-                // Rollback
-                _uiState.update { it.copy(polls = previousPolls) }
-                _eventFlow.emit(PollsEvent.ShowError("Error al eliminar: ${e.message}"))
-            }
         }
     }
 }

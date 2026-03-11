@@ -3,35 +3,28 @@ package com.example.votacion.features.polls.presentation.viewmodel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.votacion.features.polls.data.models.PollOutput
-import com.example.votacion.features.polls.data.repository.PollRepository
+import com.example.votacion.features.polls.domain.usecase.DeletePollUseCase
+import com.example.votacion.features.polls.domain.usecase.GetPollUseCase
+import com.example.votacion.features.polls.domain.usecase.GetPollsUseCase
+import com.example.votacion.features.polls.domain.usecase.UpdatePollUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-data class EditPollUiState(
-    val poll: PollOutput? = null,
-    val title: String = "",
-    val options: List<String> = emptyList(),
-    val isOpen: Boolean = true,
-    val isLoading: Boolean = false,
-    val error: String? = null,
-    val success: Boolean = false,
-    val canEditOptions: Boolean = true
-)
 
 @HiltViewModel
 class EditPollViewModel @Inject constructor(
-    private val pollRepository: PollRepository,
+    private val getPollUseCase: GetPollUseCase,
+    private val updatePollUseCase: UpdatePollUseCase,
+    private val deletePollUseCase: DeletePollUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(EditPollUiState())
-    val uiState: StateFlow<EditPollUiState> = _uiState.asStateFlow()
+    val uiState = _uiState.asStateFlow()
 
     private val pollId: String? = savedStateHandle.get<String>("pollId")
 
@@ -39,106 +32,69 @@ class EditPollViewModel @Inject constructor(
         pollId?.let { loadPoll(it) }
     }
 
+    fun updateTitle(title: String) = _uiState.update { it.copy(title = title) }
+
+    fun addOption() = _uiState.update { it.copy(options = it.options + "") }
+
+    fun updateOption(index: Int, text: String) = _uiState.update { state ->
+        val newOptions = state.options.toMutableList().apply {
+            if (index in indices) this[index] = text
+        }
+        state.copy(options = newOptions)
+    }
+
+    fun removeOption(index: Int) = _uiState.update { state ->
+        if (state.options.size > 2) {
+            state.copy(options = state.options.toMutableList().apply { removeAt(index) })
+        } else state
+    }
+
     private fun loadPoll(id: String) {
         viewModelScope.launch {
-            try {
-                _uiState.update { it.copy(isLoading = true, error = null) }
-                val poll = pollRepository.getPoll(id)
+            _uiState.update { it.copy(isLoading = true) }
 
-                val totalVotes = poll.options.sumOf { it.votesCount ?: 0 }
-                val hasVotes = totalVotes > 0
-
-                _uiState.update {
-                    it.copy(
+            // Al usar el GetPollUseCase (singular), esto devuelve Result<Poll>
+            getPollUseCase(id).fold(
+                onSuccess = { poll ->
+                    _uiState.update { it.copy(
                         poll = poll,
                         title = poll.title,
                         options = poll.options.map { it.text },
                         isOpen = poll.isOpen,
-                        isLoading = false,
-                        canEditOptions = !hasVotes
-                    )
+                        canEditOptions = poll.totalVotes == 0,
+                        isLoading = false
+                    )}
+                },
+                onFailure = { e: Throwable ->
+                    _uiState.update { it.copy(error = e.message, isLoading = false) }
                 }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(isLoading = false, error = e.message ?: "Error al cargar")
-                }
-            }
+            )
         }
     }
 
-    fun updateTitle(newTitle: String) {
-        _uiState.update { it.copy(title = newTitle) }
-    }
-
-    fun updateOption(index: Int, text: String) {
-        _uiState.update { state ->
-            val opts = state.options.toMutableList()
-            if (index < opts.size) {
-                opts[index] = text
-            }
-            state.copy(options = opts)
-        }
-    }
-
-    fun addOption() {
-        _uiState.update { it.copy(options = it.options + "") }
-    }
-
-    fun removeOption(index: Int) {
-        _uiState.update { state ->
-            if (state.options.size > 2) {
-                val opts = state.options.toMutableList()
-                opts.removeAt(index)
-                state.copy(options = opts)
-            } else {
-                state
-            }
-        }
-    }
-
-    fun toggleOpen() {
-        _uiState.update { it.copy(isOpen = !it.isOpen) }
-    }
+    fun toggleOpen() = _uiState.update { it.copy(isOpen = !it.isOpen) }
 
     fun saveChanges() {
-        val currentState = _uiState.value
-        val id = currentState.poll?.id ?: return
+        val id = pollId ?: return
         viewModelScope.launch {
-            try {
-                _uiState.update { it.copy(isLoading = true, error = null) }
-                pollRepository.updatePoll(
-                    id,
-                    currentState.title,
-                    currentState.isOpen,
-                    currentState.options
-                )
-                _uiState.update { it.copy(isLoading = false, success = true) }
-            } catch (e: Exception) {
-                _uiState.update { 
-                    it.copy(
-                        isLoading = false,
-                        error = e.message ?: "Error al actualizar la encuesta"
-                    )
-                }
-            }
+            _uiState.update { it.copy(isLoading = true) }
+            val result = updatePollUseCase(id, _uiState.value.title, _uiState.value.isOpen, _uiState.value.options)
+            result.fold(
+                onSuccess = { _uiState.update { it.copy(isLoading = false, success = true) } },
+                onFailure = { e -> _uiState.update { it.copy(isLoading = false, error = e.message) } }
+            )
         }
     }
 
     fun deletePoll() {
-        val id = _uiState.value.poll?.id ?: return
+        val id = pollId ?: return
         viewModelScope.launch {
-            try {
-                _uiState.update { it.copy(isLoading = true, error = null) }
-                pollRepository.deletePoll(id)
-                _uiState.update { it.copy(isLoading = false, success = true) }
-            } catch (e: Exception) {
-                _uiState.update { 
-                    it.copy(
-                        isLoading = false,
-                        error = e.message ?: "Error al eliminar la encuesta"
-                    )
-                }
-            }
+            _uiState.update { it.copy(isLoading = true) }
+            deletePollUseCase(id).fold(
+                onSuccess = { _uiState.update { it.copy(isLoading = false, success = true) } },
+                onFailure = { e -> _uiState.update { it.copy(isLoading = false, error = e.message) } }
+            )
         }
     }
+
 }

@@ -89,13 +89,9 @@ fun RegisterScreen(
             }
 
             Button(
-                onClick = {
-                    viewModel.register(uiState.email, uiState.name, uiState.password)
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                enabled = !uiState.isLoading && uiState.email.isNotEmpty() && 
+                onClick = { viewModel.register() }, // Sin parámetros
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+                enabled = !uiState.isLoading && uiState.email.isNotEmpty() &&
                         uiState.name.isNotEmpty() && uiState.password.isNotEmpty()
             ) {
                 if (uiState.isLoading) {

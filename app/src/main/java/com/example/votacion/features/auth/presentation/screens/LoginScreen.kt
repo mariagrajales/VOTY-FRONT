@@ -80,12 +80,8 @@ fun LoginScreen(
             }
 
             Button(
-                onClick = {
-                    viewModel.login(uiState.email, uiState.password)
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
+                onClick = { viewModel.login() }, // Sin parámetros
+                modifier = Modifier.fillMaxWidth().height(50.dp),
                 enabled = !uiState.isLoading && uiState.email.isNotEmpty() && uiState.password.isNotEmpty()
             ) {
                 if (uiState.isLoading) {

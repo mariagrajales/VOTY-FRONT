@@ -10,7 +10,8 @@ data class LoginRequest(
 data class RegisterRequest(
     @SerializedName("email") val email: String,
     @SerializedName("name") val name: String,
-    @SerializedName("password") val password: String
+    @SerializedName("password") val password: String,
+    @SerializedName("avatar") val avatar: String? = null
 )
 
 data class AuthResponse(
@@ -22,9 +23,15 @@ data class UserResponse(
     val id: String,
     val email: String,
     val name: String,
-    val active: Boolean,
     @SerializedName("created_at")
     val createdAt: String,
     @SerializedName("updated_at")
-    val updatedAt: String
+    val updatedAt: String,
+    @SerializedName("avatar_url")
+    val avatarUrl: String? = null
+)
+
+data class UpdateProfileRequest(
+    val name: String? = null,
+    val avatar: String? = null // Base64
 )
