@@ -11,6 +11,7 @@ import com.example.votacion.features.auth.presentation.screens.RegisterScreen
 import com.example.votacion.features.polls.presentation.screens.PollsScreen
 import com.example.votacion.features.polls.presentation.screens.CreatePollScreen
 import com.example.votacion.features.polls.presentation.screens.EditPollScreen
+import com.example.votacion.features.profile.presentation.screens.ProfileScreen
 import com.example.votacion.features.auth.presentation.viewmodel.AuthViewModel
 
 @Composable
@@ -34,8 +35,7 @@ fun NavigationGraph(
             LoginScreen(
                 onLoginSuccess = {
                     navController.navigate(Screen.Polls.route) {
-                        popUpTo(Screen.Login.route) { inclusive = true }
-                    }
+                        popUpTo(Screen.Login.route) { inclusive = true } }
                 },
                 onNavigateToRegister = {
                     navController.navigate(Screen.Register.route)
@@ -64,10 +64,21 @@ fun NavigationGraph(
                 onNavigateToEditPoll = { pollId ->
                     navController.navigate(Screen.EditPoll.createRoute(pollId))
                 },
+                onNavigateToProfile = {
+                    navController.navigate(Screen.Profile.route)
+                },
                 onLogout = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.Polls.route) { inclusive = true }
                     }
+                }
+            )
+        }
+
+        composable(Screen.Profile.route) {
+            ProfileScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
                 }
             )
         }

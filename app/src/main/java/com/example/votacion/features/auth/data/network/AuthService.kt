@@ -12,4 +12,7 @@ interface AuthService {
 
     @GET("profile")
     suspend fun getProfile(): UserResponse
+
+    @PUT("profile")
+    suspend fun updateProfile(@Body request: UpdateProfileRequest): UserResponse
 }

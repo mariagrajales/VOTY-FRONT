@@ -20,11 +20,21 @@ object PreferencesKey {
 }
 
 @Singleton
-class AuthPreferences @Inject constructor(@ApplicationContext private val context: Context) {
-    
+class AuthPreferences @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
+
+    // --- ESCRITURA ---
+
     suspend fun saveToken(token: String) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKey.AUTH_TOKEN] = token
+        }
+    }
+
+    suspend fun saveUserName(name: String) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKey.USER_NAME] = name
         }
     }
 
@@ -36,25 +46,28 @@ class AuthPreferences @Inject constructor(@ApplicationContext private val contex
         }
     }
 
-    suspend fun clear() {
+    suspend fun clearData() { // Cambiado de clear() a clearData() para coincidir con el Repo
         context.dataStore.edit { preferences ->
             preferences.clear()
         }
     }
 
-    fun getToken(): Flow<String> = context.dataStore.data.map { preferences ->
+    // --- LECTURA (FLOWS) ---
+
+    // Cambiado de getToken() a tokenFlow para ser más descriptivo en arquitectura reactiva
+    val tokenFlow: Flow<String> = context.dataStore.data.map { preferences ->
         preferences[PreferencesKey.AUTH_TOKEN] ?: ""
     }
 
-    fun getUserEmail(): Flow<String> = context.dataStore.data.map { preferences ->
-        preferences[PreferencesKey.USER_EMAIL] ?: ""
-    }
-
-    fun getUserName(): Flow<String> = context.dataStore.data.map { preferences ->
+    val userNameFlow: Flow<String> = context.dataStore.data.map { preferences ->
         preferences[PreferencesKey.USER_NAME] ?: ""
     }
 
-    fun getUserId(): Flow<String> = context.dataStore.data.map { preferences ->
+    val userEmailFlow: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKey.USER_EMAIL] ?: ""
+    }
+
+    val userIdFlow: Flow<String> = context.dataStore.data.map { preferences ->
         preferences[PreferencesKey.USER_ID] ?: ""
     }
 }
