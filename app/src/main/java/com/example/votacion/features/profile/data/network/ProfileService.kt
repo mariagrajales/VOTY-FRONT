@@ -8,6 +8,9 @@ interface ProfileService {
     @GET("profile")
     suspend fun getProfile(): ProfileResponse
 
-    @PUT("profile")
-    suspend fun updateProfile(@Body request: UpdateProfileRequest): ProfileResponse
+    @PUT("users/{id}")
+    suspend fun updateProfile(
+        @Path("id") id: String,
+        @Body request: UpdateProfileRequest
+    ): ProfileResponse
 }

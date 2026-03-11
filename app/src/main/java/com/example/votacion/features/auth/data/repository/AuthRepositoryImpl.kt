@@ -17,13 +17,15 @@ class AuthRepositoryImpl @Inject constructor(
 ) : AuthRepository {
 
     override suspend fun login(email: String, password: String) {
-        // 1. Llamada a la API
         val response = authService.login(LoginRequest(email, password))
 
-        // 2. Guardar el token localmente si la llamada fue exitosa
-        // (Retrofit lanzará excepción si el código no es 2xx, manejado por el Use Case)
+        // Guardar token y datos del usuario, incluyendo el ID
         authPreferences.saveToken(response.token)
-        authPreferences.saveUserName(response.user.name)
+        authPreferences.saveUser(
+            userId = response.user.id,
+            userEmail = response.user.email,
+            userName = response.user.name
+        )
     }
 
     override suspend fun register(email: String, name: String, password: String) {
@@ -39,7 +41,6 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun isAuthenticated(): Boolean {
-        // Obtenemos el valor actual del flow de forma síncrona/suspendida
         return authPreferences.tokenFlow.first().isNotEmpty()
     }
 }

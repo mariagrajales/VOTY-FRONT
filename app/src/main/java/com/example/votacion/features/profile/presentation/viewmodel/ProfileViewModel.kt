@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Base64
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.votacion.core.hardware.VibrationManager
@@ -21,8 +22,6 @@ import kotlinx.coroutines.launch
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import javax.inject.Inject
-
-
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
@@ -52,10 +51,10 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-
     fun updateAvatar(base64Image: String) {
         viewModelScope.launch {
             try {
+                Log.d("ProfileViewModel", "Starting avatar update. Base64 length: ${base64Image.length}")
                 _uiState.update { it.copy(isUpdating = true) }
 
                 val result = updateProfileUseCase(avatar = base64Image)
@@ -63,13 +62,17 @@ class ProfileViewModel @Inject constructor(
                 _uiState.update { currentState ->
                     result.fold(
                         onSuccess = { user ->
+                            Log.d("ProfileViewModel", "Avatar update SUCCESS")
+                            vibrationManager.vibrateSuccess()
                             currentState.copy(
-                                user = user, // <-- AQUÍ usamos el 'user' retornado, no el use case
+                                user = user,
                                 isUpdating = false,
                                 error = null
                             )
                         },
                         onFailure = { error ->
+                            Log.e("ProfileViewModel", "Avatar update FAILED: ${error.message}")
+                            vibrationManager.vibrateError()
                             currentState.copy(
                                 isUpdating = false,
                                 error = error.message
@@ -78,52 +81,63 @@ class ProfileViewModel @Inject constructor(
                     )
                 }
 
-                // 3. Vibración solo si fue exitoso (opcional, según tu lógica)
-                if (result.isSuccess) vibrationManager.vibrateSuccess()
-
             } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Exception in updateAvatar", e)
                 vibrationManager.vibrateError()
                 _uiState.update { it.copy(isUpdating = false, error = e.message) }
             }
         }
     }
 
-
-    fun updateAvatar(uri: android.net.Uri) {
+    fun updateAvatar(uri: Uri) {
         viewModelScope.launch {
-            val base64 = uriToBase64(uri) // Función auxiliar que ya deberías tener
+            Log.d("ProfileViewModel", "Updating avatar from URI: $uri")
+            val base64 = uriToBase64(uri)
             if (base64 != null) {
                 executeAvatarUpdate(base64)
+            } else {
+                Log.e("ProfileViewModel", "Failed to convert URI to Base64")
             }
         }
     }
 
-    fun updateAvatar(bitmap: android.graphics.Bitmap) {
+    fun updateAvatar(bitmap: Bitmap) {
         viewModelScope.launch {
-            val base64 = bitmapToBase64(bitmap) // Función auxiliar
+            Log.d("ProfileViewModel", "Updating avatar from Bitmap")
+            val base64 = bitmapToBase64(bitmap)
             executeAvatarUpdate(base64)
         }
     }
 
     private suspend fun executeAvatarUpdate(base64: String) {
+        Log.d("ProfileViewModel", "Executing avatar update. Base64 preview: ${base64.take(30)}...")
         _uiState.update { it.copy(isUpdating = true) }
         val result = updateProfileUseCase(avatar = base64)
         _uiState.update { state ->
             result.fold(
-                onSuccess = { user -> state.copy(user = user, isUpdating = false) },
-                onFailure = { error -> state.copy(isUpdating = false, error = error.message) }
+                onSuccess = { user ->
+                    Log.d("ProfileViewModel", "Execution SUCCESS")
+                    vibrationManager.vibrateSuccess()
+                    state.copy(user = user, isUpdating = false, error = null)
+                },
+                onFailure = { e ->
+                    Log.e("ProfileViewModel", "Execution FAILED: ${e.message}")
+                    vibrationManager.vibrateError()
+                    state.copy(isUpdating = false, error = e.message)
+                }
             )
         }
     }
 
     private fun uriToBase64(uri: Uri): String? {
         return try {
-            context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                val bytes = inputStream.readBytes()
-                Base64.encodeToString(bytes, Base64.NO_WRAP)
+            context.contentResolver.openInputStream(uri)?.use { stream ->
+                val bitmap = BitmapFactory.decodeStream(stream)
+                val scaled = Bitmap.createScaledBitmap(bitmap, 500, 500, true)
+                bitmapToBase64(scaled)
             }
         } catch (e: Exception) {
-            android.util.Log.e("ProfileViewModel", "Error converting URI to Base64", e)
+            Log.e("ProfileViewModel", "Error in uriToBase64", e)
             null
         }
     }
@@ -131,7 +145,6 @@ class ProfileViewModel @Inject constructor(
     private fun bitmapToBase64(bitmap: Bitmap): String {
         val outputStream = ByteArrayOutputStream()
         bitmap.compress(Bitmap.CompressFormat.JPEG, 70, outputStream)
-        val byteArray = outputStream.toByteArray()
-        return Base64.encodeToString(byteArray, Base64.NO_WRAP)
+        return Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP)
     }
 }

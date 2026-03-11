@@ -2,7 +2,7 @@
 
 package com.example.votacion.features.profile.presentation.screens
 
-import android.graphics.Bitmap
+import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.launch
@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -34,7 +35,6 @@ fun ProfileScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showDialog by remember { mutableStateOf(false) }
 
-    // Launchers para hardware... (Misma lógica anterior)
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let { viewModel.updateAvatar(it) }
     }
@@ -61,7 +61,6 @@ fun ProfileScreen(
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Sección de Foto de Perfil
             Box(
                 contentAlignment = Alignment.BottomEnd,
                 modifier = Modifier.size(120.dp)
@@ -69,11 +68,23 @@ fun ProfileScreen(
                 if (uiState.isUpdating) {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 } else {
+                    // Lógica mejorada para renderizar Base64
                     val imageModel = remember(uiState.user?.avatarImage) {
                         val base64Data = uiState.user?.avatarImage
                         if (!base64Data.isNullOrBlank()) {
-                            if (base64Data.startsWith("data:image")) base64Data
-                            else "data:image/jpeg;base64,$base64Data"
+                            try {
+                                // Intentamos decodificar para verificar si es un base64 válido
+                                // Si tiene el prefijo data:image, se lo quitamos para decodificar
+                                val pureBase64 = if (base64Data.contains(",")) {
+                                    base64Data.substringAfter(",")
+                                } else {
+                                    base64Data
+                                }
+                                Base64.decode(pureBase64, Base64.DEFAULT)
+                            } catch (e: Exception) {
+                                // Si falla la decodificación, devolvemos el string original (quizás es una URL)
+                                base64Data
+                            }
                         } else {
                             "https://ui-avatars.com/api/?name=${uiState.user?.name ?: "U"}&background=random"
                         }
@@ -91,7 +102,6 @@ fun ProfileScreen(
                     )
                 }
 
-                // El botón va AQUÍ, dentro del Box pero fuera del 'if/else' del loading
                 SmallFloatingActionButton(
                     onClick = { showDialog = true },
                     shape = CircleShape,
@@ -104,8 +114,15 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            Text(text = uiState.user?.name ?: "Cargando...", style = MaterialTheme.typography.headlineMedium)
-            Text(text = uiState.user?.email ?: "", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                text = uiState.user?.name ?: "Cargando...",
+                style = MaterialTheme.typography.headlineMedium
+            )
+            Text(
+                text = uiState.user?.email ?: "",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
             Spacer(modifier = Modifier.height(32.dp))
 
@@ -116,8 +133,7 @@ fun ProfileScreen(
                         label = "Miembro desde",
                         value = uiState.user?.memberSince ?: "-"
                     )
-                    // El divider va dentro de la columna para que tenga el padding
-                    Divider(modifier = Modifier.padding(vertical = 8.dp))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                 }
             }
         }
@@ -129,14 +145,20 @@ fun ProfileScreen(
             title = { Text("Actualizar foto de perfil") },
             text = { Text("Elige una opción para cambiar tu imagen.") },
             confirmButton = {
-                TextButton(onClick = { cameraLauncher.launch(); showDialog = false }) {
+                TextButton(onClick = { 
+                    cameraLauncher.launch()
+                    showDialog = false 
+                }) {
                     Icon(Icons.Default.CameraAlt, null)
                     Spacer(Modifier.width(8.dp))
                     Text("Cámara")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { galleryLauncher.launch("image/*"); showDialog = false }) {
+                TextButton(onClick = { 
+                    galleryLauncher.launch("image/*")
+                    showDialog = false 
+                }) {
                     Icon(Icons.Default.PhotoLibrary, null)
                     Spacer(Modifier.width(8.dp))
                     Text("Galería")
@@ -148,7 +170,7 @@ fun ProfileScreen(
 
 @Composable
 fun ProfileInfoRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     label: String,
     value: String
 ) {

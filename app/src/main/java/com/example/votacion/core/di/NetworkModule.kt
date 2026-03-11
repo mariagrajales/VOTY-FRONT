@@ -2,7 +2,7 @@ package com.example.votacion.core.di
 
 import android.content.Context
 import com.example.votacion.core.network.AuthInterceptor
-import com.example.votacion.core.data.TokenManager
+import com.example.votacion.core.data.AuthPreferences
 import com.example.votacion.features.auth.data.network.AuthService
 import com.example.votacion.features.polls.data.network.PollService
 import dagger.Module
@@ -33,10 +33,10 @@ object NetworkModule {
     @Provides
     fun provideOkHttpClient(
         @ApplicationContext context: Context,
-        tokenManager: TokenManager
+        authPreferences: AuthPreferences
     ): OkHttpClient {
         return OkHttpClient.Builder()
-            .addInterceptor(AuthInterceptor(context, tokenManager))
+            .addInterceptor(AuthInterceptor(context, authPreferences))
             .build()
     }
 

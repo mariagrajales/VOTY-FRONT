@@ -16,9 +16,9 @@ class ProfileRepositoryImpl @Inject constructor(
         return response.toDomain()
     }
 
-    override suspend fun updateProfile(name: String?, avatar: String?): UserProfile {
+    override suspend fun updateProfile(userId: String, name: String?, avatar: String?): UserProfile {
         val request = UpdateProfileRequest(name = name, avatar = avatar)
-        val response = profileService.updateProfile(request)
-        return response.toDomain() // Convertimos a UserProfile
+        val response = profileService.updateProfile(userId, request)
+        return response.toDomain()
     }
 }
