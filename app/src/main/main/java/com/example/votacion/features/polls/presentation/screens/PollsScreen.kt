@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -43,6 +44,13 @@ fun PollsScreen(
         pollsViewModel.loadPolls()
     }
 
+    DisposableEffect(Unit) {
+        pollsViewModel.shakeDetector.startListening()
+        onDispose {
+            pollsViewModel.shakeDetector.stopListening()
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -61,7 +69,19 @@ fun PollsScreen(
         when {
             uiState.isLoading -> LoadingBox(padding)
             uiState.error != null -> ErrorBox(uiState.error!!, padding) { pollsViewModel.loadPolls() }
-            else -> PollList(uiState.polls, padding, pollsViewModel, onNavigateToEditPoll)
+            else -> {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    PollList(uiState.polls, padding, pollsViewModel, onNavigateToEditPoll)
+                    if (uiState.isRefreshing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .padding(padding)
+                                .padding(top = 16.dp)
+                        )
+                    }
+                }
+            }
         }
     }
 }
