@@ -6,17 +6,21 @@ import com.example.votacion.core.hardware.VibrationManager
 import com.example.votacion.features.polls.domain.usecase.CastVoteUseCase
 import com.example.votacion.features.polls.domain.usecase.DeletePollUseCase
 import com.example.votacion.features.polls.domain.usecase.GetPollsUseCase
+import com.example.votacion.features.polls.domain.usecase.RefreshPollsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.example.votacion.core.hardware.ShakeDetector
 
 @HiltViewModel
 class PollsViewModel @Inject constructor(
     private val getPollsUseCase: GetPollsUseCase,
+    private val refreshPollsUseCase: RefreshPollsUseCase,
     private val castVoteUseCase: CastVoteUseCase,
     private val deletePollUseCase: DeletePollUseCase,
-    private val vibrationManager: VibrationManager
+    private val vibrationManager: VibrationManager,
+    val shakeDetector: ShakeDetector
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PollsUiState())
@@ -27,24 +31,53 @@ class PollsViewModel @Inject constructor(
 
     init {
         loadPolls()
+        observeShakeEvents()
     }
 
-    fun loadPolls() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
-
-            // Si este devuelve Flow, se usa así:
-            getPollsUseCase().collect { result ->
-                result.fold(
-                    onSuccess = { polls ->
-                        _uiState.update { it.copy(polls = polls, isLoading = false) }
+    fun loadPolls(isRefresh: Boolean = false) {
+        if (isRefresh) {
+            viewModelScope.launch {
+                _uiState.update { it.copy(isRefreshing = true, error = null) }
+                refreshPollsUseCase().fold(
+                    onSuccess = { 
+                        _uiState.update { it.copy(isRefreshing = false) }
                     },
-                    onFailure = { error ->
-                        _uiState.update { it.copy(error = error.message, isLoading = false) }
+                    onFailure = { error -> 
+                        _uiState.update { it.copy(error = error.message, isRefreshing = false) }
                     }
                 )
             }
+        } else {
+            viewModelScope.launch {
+                _uiState.update { it.copy(isLoading = true, error = null) }
+
+                // Si este devuelve Flow, se usa así:
+                getPollsUseCase().collect { result ->
+                    result.fold(
+                        onSuccess = { polls ->
+                            _uiState.update { it.copy(polls = polls, isLoading = false, isRefreshing = false) }
+                        },
+                        onFailure = { error ->
+                            _uiState.update { it.copy(error = error.message, isLoading = false, isRefreshing = false) }
+                        }
+                    )
+                }
+            }
         }
+    }
+
+    private fun observeShakeEvents() {
+        viewModelScope.launch {
+            shakeDetector.shakeEvents.collect {
+                // Ejecutar recarga de encuestas al agitar
+                loadPolls(isRefresh = true)
+            }
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        shakeDetector.stopListening()
     }
 
     fun castVote(pollId: String, optionId: String) {
