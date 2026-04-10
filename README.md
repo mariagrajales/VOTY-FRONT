@@ -1,170 +1,100 @@
-# Aplicación de Votación Android
+🗳️ VOTY - Sistema de Votación Inteligente (Android)
+VOTY es una aplicación móvil de votación robusta, diseñada bajo principios de Clean Architecture y Offline-First. Permite a los usuarios participar en procesos democráticos digitales de manera fluida, incluso sin conexión a internet, aprovechando el hardware del dispositivo para una experiencia enriquecida.
+🚀 Novedades y Mejoras (Corte 03)
+Para esta entrega final, se han implementado las siguientes capacidades avanzadas:
+•
+Resiliencia Offline: Uso de Room y WorkManager para permitir votaciones y creación de encuestas sin internet, con sincronización automática posterior.
+•
+Interacción con Hardware:
+◦
+Acelerómetro: Implementación de Shake-to-Refresh para actualizar encuestas agitando el móvil.
+◦
+Feedback Háptico: Vibración confirmatoria al registrar un voto exitosamente.
+•
+Comunicación Proactiva: Integración de Firebase Cloud Messaging (FCM) para notificaciones push en tiempo real.
+•
+Arquitectura Evolucionada: Migración total a KSP para Hilt y Room, y estructura de carpetas por capas de dominio.
 
-Una aplicación Android moderna para crear y gestionar encuestas/votaciones con autenticación JWT, construida con Jetpack Compose y siguiendo la arquitectura MVVM.
+🛠️ Stack Tecnológico
+•
+UI: Jetpack Compose con Material Theme 3.0 (Soporte para colores dinámicos).
+•
+Arquitectura: MVVM + Clean Architecture (Data, Domain, Presentation).
+•
+Persistencia: Room Database (SSOT - Single Source of Truth).
+•
+Sincronización: WorkManager con restricciones de red.
+•
+Red: Retrofit 2.11 + Corrutinas de Kotlin.
+•
+DI: Hilt (Dagger) con navegación integrada.
+•
+Hardware: Sensor Manager (Acelerómetro) y Vibrator Service.
+•
+Mensajería: Firebase Cloud Messaging.
+📱 Pantallas y Funcionalidades
+🔐 Autenticación (MVP 1)
+•
+Login/Registro: Validación de JWT y persistencia de sesión segura mediante DataStore.
+•
+Seguridad: Interceptores de red para adjuntar el token automáticamente.
+🗳️ Gestión de Encuestas (MVP 2)
+•
+Dashboard Dinámico: Visualización de resultados en tiempo real con porcentajes y contadores.
+•
+Creación Avanzada: Formulario dinámico para añadir múltiples opciones con validación en tiempo real.
+🔄 Sincronización y Hardware (MVP 3)
+•
+Modo Offline: Los votos se guardan localmente en Room y un Worker se encarga de subirlos al recuperar conexión.
+•
+Shake-to-Refresh: Refresco visual activado por el movimiento del dispositivo.
+•
+Notificaciones: Alertas de nuevas encuestas disponibles.
+🏗️ Estructura del Proyecto
+app/src/main/main/java/com/jmvoty/votacion/
+├── core/                    
+│   ├── database/            # Configuración de Room
+│   ├── di/                  # Módulos de Hilt (Network, Database, etc.)
+│   ├── hardware/            # ShakeDetector, VibrationManager
+│   └── notifications/       # VotacionMessagingService (FCM)
+├── features/                # Organizado por Feature -> Capas
+│   ├── auth/                
+│   │   ├── data/ | domain/ | presentation/
+│   ├── polls/               
+│   │   ├── data/            # Repositorios y Workers (SyncVotesWorker)
+│   │   ├── domain/          # Casos de Uso (UseCases)
+│   │   └── presentation/    # ViewModels (StateFlow) y Screens
+│   └── profile/
+└── navigation/              # Grafo de navegación de Compose
 
-## Requisitos Previos
+⚙️ Configuración y Ejecución
+1. Sabores (Flavors)
+El proyecto utiliza dos entornos configurados en build.gradle.kts:
+•
+dev: Apunta a la API de desarrollo y añade "(DEV)" al nombre de la app.
+•
+prod: Configuración optimizada para producción.
+2. Variables de Entorno
+La URL base está centralizada en los flavors:
+Kotlin
+buildConfigField("String", "BASE_URL_UPRED", "\"https://apivoty.jhonatanzc.fun/\"")
+3. Instalación
+1.
+Asegúrate de tener el archivo google-services.json en la carpeta /app.
+2.
+Sincroniza Gradle (Usa Java 21).
+3.
+Ejecuta la variante deseada desde la pestaña "Build Variants".
 
-- androidStudioProjects/Votacion$ instalado
-- API GO de votación funcionando (ver API_VOTY)
-- Android SDK 36 (asegúrate de tener `platform-tools`/`adb` en tu PATH para ver logs)
-- Kotlin 2.2.10
-
-> ⚠️ **Importante**: los sabores (`dev`/`prod`) sobrescriben el nombre de la aplicación. Se ha actualizado para que el nombre sea "Votacion (DEV)" en modo dev y "Votacion" en producción. Si ves otras etiquetas como "Demo" o "Voty", desinstala las versiones anteriores antes de reinstalar.
-
-
-## Inicio Rápido
-
-### 1. Configurar la API
-La API ya está desplegada en `https://apivoty.jhonatanzc.fun/ETC`, no es necesario correrla localmente.
-
-### 2. Configurar la URL de la API
-El proyecto ya apunta a la URL desplegada en `build.gradle.kts`:
-```kotlin
-buildConfigField("String", "BASE_URL_UPRED", "\"https://apivoty.jhonatanzc.fun/ETC\"")
-```
-
-### 3. Compilar y ejecutar
-```bash
-# Sincronizar Gradle
-./gradlew sync
-
-# Compilar
-./gradlew build
-
-# Ejecutar en emulador o dispositivo
-./gradlew installDebug
-```
-
-## Pantallas Disponibles
-
-### 🔐 Login
-- Inicia sesión con email y contraseña
-- Navega a registro para nuevos usuarios
-- Valida credenciales con la API
-
-### 📝 Registro
-- Crea nueva cuenta con email, nombre y contraseña
-- Validaciones de formulario
-- Almacena token automáticamente
-
-### 🗳️ Encuestas (Pantalla Principal)
-- Lista todas las encuestas disponibles
-- Muestra información completa de cada encuesta:
-  - Título
-  - Opciones de voto
-  - Contador de votos por opción
-  - Porcentaje de votos
-  - Indicador de si ya votaste
-- Botón flotante para crear nueva encuesta
-- Botón de cerrar sesión
-
-### ➕ Crear Encuesta
-- Campo para ingresar el título
-- Agregar/remover opciones (mínimo 2)
-- Validación de inputs
-- Confirmación de creación
-
-## Flujo de Autenticación
-
-1. Usuario abre la app
-2. Si no tiene token → Pantalla de Login
-3. Login exitoso → Almacena token y navega a Encuestas
-4. Token se incluye automáticamente en requests
-5. Botón Logout → Borra token y regresa a Login
-
-## Características Destacadas
-
-✨ **Material Design 3** - UI moderna y consistente
-🔒 **Autenticación JWT** - Seguridad con tokens
-💾 **DataStore** - Almacenamiento seguro de datos
-🎯 **MVVM + Hilt** - Arquitectura limpia
-📱 **Jetpack Compose** - UI reactiva
-🔄 **Estado reactivo** - MutableStateOf para UI updates
-
-## Estructura del Proyecto
-
-```
-app/
-├── src/main/
-│   ├── java/com/example/votacion/
-│   │   ├── core/                    # DI, interceptores, datastore, utilidades
-│   │   ├── features/                # Código organizado por característica
-│   │   │   ├── auth/                # Login/registro
-│   │   │   │   ├── data/            # Modelos, servicio, repositorio
-│   │   │   │   └── presentation/    # ViewModels y pantallas
-│   │   │   └── polls/               # Encuestas
-│   │   │       ├── data/            # Modelos, servicio, repositorio
-│   │   │       └── presentation/    # ViewModels y pantallas
-│   │   ├── navigation/              # Navegación
-│   │   ├── VotacionApp.kt           (Application)
-│   │   └── MainActivity.kt          (Actividad principal)
-│   ├── AndroidManifest.xml
-│   └── res/                         (Recursos)
-└── build.gradle.kts
-```
-
-## Configuración de Hilt
-
-Hilt está totalmente configurado con:
-- `@HiltAndroidApp` en VotacionApp
-- `@AndroidEntryPoint` en MainActivity
-- `@HiltViewModel` en ViewModels
-- Módulos DI en `core/di/`
-
-## Endpoints de API Utilizados
-
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| POST | `/auth/register` | Registrar usuario |
-| POST | `/auth/login` | Iniciar sesión |
-| GET | `/auth/profile` | Obtener perfil |
-| GET | `/polls` | Listar encuestas |
-| POST | `/polls` | Crear encuesta |
-| POST | `/polls/{id}/vote/{option_id}` | Votar |
-
-## Troubleshooting
-
-### Error de conexión a API
-- Verifica que la API esté corriendo
-- Revisa la URL en build.gradle.kts
-- En emulador, usa `10.0.2.2` para localhost
-
-### Errores de compilación
-- Sincronizar Gradle: `./gradlew sync`
-- Limpiar build: `./gradlew clean`
-- Invalidar caches: File → Invalidate Caches
-
-### Token no persiste
-- Verifica que AuthPreferences esté inyectado
-- Comprueba permisos en AndroidManifest.xml
-
-## Desarrollo
-
-### Agregar nueva feature
-1. Crear modelo en `data/models/`
-2. Crear servicio API en `data/network/`
-3. Crear repositorio en `data/repository/`
-4. Crear ViewModel en `presentation/viewmodel/`
-5. Crear screen en `presentation/screens/`
-6. Agregar ruta en `navigation/Screen.kt`
-7. Agregar composable en `NavigationGraph.kt`
-
-### Testing
-```bash
-# Tests unitarios
-./gradlew test
-
-# Tests de UI
-./gradlew connectedAndroidTest
-```
-
-## Licencia
-Proyecto de ejemplo - Libre para usar y modificar
-
-## Soporte
-Para problemas o sugerencias, contacta al desarrollador.
-
----
-
-**Última actualización:** Febrero 2026
-**Versión:** 1.0
+📊 Estrategia de Datos (Room + WorkManager)
+La aplicación implementa un flujo de Single Source of Truth:
+1.
+El usuario realiza una acción (votar/crear).
+2.
+Los datos se guardan inmediatamente en Room.
+3.
+Se encola un OneTimeWorkRequest en WorkManager con la restricción NetworkType.CONNECTED.
+4.
+La UI observa un Flow de Room, por lo que el cambio es instantáneo para el usuario (optimistic UI).
+📝 Conclusión
+Este proyecto demuestra la capacidad de construir una aplicación empresarial que no depende de una conexión constante, utiliza los sensores del dispositivo para mejorar la accesibilidad y mantiene un código limpio y escalable siguiendo los estándares más exigentes de la industria Android actual.
