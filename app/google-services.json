@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "505794374504",
+    "project_id": "com-example-votacion",
+    "storage_bucket": "com-example-votacion.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:505794374504:android:fe133ee821c148301144dd",
+        "android_client_info": {
+          "package_name": "com.jmvoty.votacion"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC1Hi5-YEvBWLj6gp3NqoP3XNqk0r6XvnU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

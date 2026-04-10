@@ -7,20 +7,29 @@ plugins {
     // Activa Hilt y KSP
     alias(libs.plugins.devtools.ksp)
     alias(libs.plugins.hilt.android)
+    alias(libs.plugins.google.services)
 }
 
 android {
-    namespace = "com.example.votacion"
+    namespace = "com.jmvoty.votacion"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.votacion"
+        applicationId = "com.jmvoty.votacion"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    sourceSets {
+        getByName("main") {
+            manifest.srcFile("src/main/main/AndroidManifest.xml")
+            java.setSrcDirs(listOf("src/main/main/java"))
+            res.setSrcDirs(listOf("src/main/main/res"))
+        }
     }
 
     buildTypes {
@@ -105,11 +114,14 @@ dependencies {
     // Room
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
+    implementation(libs.androidx.hilt.common)
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.hilt.work)
     ksp(libs.androidx.room.compiler)
 
     ksp(libs.hilt.compiler)                                         // KSP
 
-
+    ksp("androidx.hilt:hilt-compiler:1.2.0")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -117,4 +129,8 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    // Firebase
+    implementation(platform("com.google.firebase:firebase-bom:33.1.0"))
+    implementation("com.google.firebase:firebase-messaging-ktx")
 }
