@@ -9,12 +9,19 @@ interface PollService {
     @GET("polls")
     suspend fun listPolls(): List<PollOutput>
 
+
     @Multipart
     @POST("polls")
-    suspend fun createPoll(
+    suspend fun createPollWithImages(
         @Query("title") title: String,
-        @Query("options") options: String, // 👈 Cambiado de List a String
-        @Part images: @JvmSuppressWildcards List<MultipartBody.Part>
+        @Query("options") options: String,
+        @Part images: List<MultipartBody.Part>
+    ): Response<Unit>
+
+    @POST("polls")
+    suspend fun createPollSimple(
+        @Query("title") title: String,
+        @Query("options") options: String
     ): Response<Unit>
 
     @GET("polls/{id}")

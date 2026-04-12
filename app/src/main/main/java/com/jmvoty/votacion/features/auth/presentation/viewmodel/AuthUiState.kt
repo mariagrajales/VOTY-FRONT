@@ -2,6 +2,7 @@ package com.jmvoty.votacion.features.auth.presentation.viewmodel
 
 data class AuthUiState(
     val isLoading: Boolean = false,
+    val isCheckingAuth: Boolean = true, // Nuevo: Indica si está verificando el token al inicio
     val email: String = "",
     val password: String = "",
     val name: String = "",
@@ -10,7 +11,6 @@ data class AuthUiState(
     val userName: String = ""
 )
 
-// Eventos para navegación o efectos visuales fuera del estado
 sealed class AuthEvent {
     object LoginSuccess : AuthEvent()
     object RegisterSuccess : AuthEvent()

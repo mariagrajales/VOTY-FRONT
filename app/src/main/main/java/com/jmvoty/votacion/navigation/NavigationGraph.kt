@@ -1,7 +1,13 @@
 package com.jmvoty.votacion.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -20,6 +26,14 @@ fun NavigationGraph(
     authViewModel: AuthViewModel
 ) {
     val uiState by authViewModel.uiState.collectAsStateWithLifecycle()
+
+    // Si aún está verificando el token, mostramos una carga para evitar decisiones erróneas
+    if (uiState.isCheckingAuth) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
+    }
     
     val startDestination = if (uiState.isAuthenticated) {
         Screen.Polls.route
@@ -68,8 +82,9 @@ fun NavigationGraph(
                     navController.navigate(Screen.Profile.route)
                 },
                 onLogout = {
+                    authViewModel.logout() // IMPORTANTE: Limpiar sesión
                     navController.navigate(Screen.Login.route) {
-                        popUpTo(Screen.Polls.route) { inclusive = true }
+                        popUpTo(0) { inclusive = true }
                     }
                 }
             )

@@ -1,5 +1,7 @@
 package com.jmvoty.votacion.features.polls.data.repository
 
+import android.content.Context
+import android.net.Uri
 import com.jmvoty.votacion.features.polls.data.local.dao.PollDao
 import com.jmvoty.votacion.features.polls.data.local.entities.VoteSyncEntity
 import com.jmvoty.votacion.features.polls.data.local.entities.toDomain
@@ -8,13 +10,18 @@ import com.jmvoty.votacion.features.polls.data.models.PollOutput
 import com.jmvoty.votacion.features.polls.data.models.UpdatePollRequest
 import com.jmvoty.votacion.features.polls.data.network.PollService
 import com.jmvoty.votacion.features.polls.presentation.viewmodel.OptionDraft
+import dagger.hilt.android.qualifiers.ApplicationContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
 import retrofit2.Response
+import java.io.File
 import javax.inject.Inject
 
 class PollRepository @Inject constructor(
     private val pollService: PollService,
-    private val pollDao: PollDao
+    private val pollDao: PollDao,
+    @ApplicationContext private val context: Context
 ) {
     suspend fun getPolls(): List<PollOutput> {
         android.util.Log.d("PollRepository", "Fetching all polls")
@@ -62,17 +69,23 @@ class PollRepository @Inject constructor(
     suspend fun createPoll(title: String, options: List<OptionDraft>) {
         android.util.Log.d("PollRepository", "Creating poll: $title")
 
-        // 1. Simplemente usamos los Strings, no más toRequestBody
-        val titleString = title
-        val optionStrings = options.joinToString(",") { it.text } // Resulta en "Go,Python"
+        val optionStrings = options.joinToString(",") { it.text }
 
-        // 2. Lista vacía de imágenes si no hay ninguna
-        // (Retrofit enviará el Multipart pero sin archivos, lo cual Go manejará bien)
-        val imageParts = emptyList<MultipartBody.Part>()
+        val imageParts = options.mapNotNull { draft ->
+            draft.imageUri?.let { uri ->
+                uriToFile(context, uri)?.let { file ->
+                    val requestFile = file.asRequestBody("image/*".toMediaTypeOrNull())
+                    MultipartBody.Part.createFormData("images", file.name, requestFile)
+                }
+            }
+        }
 
-        // 3. Llamar al servicio con los tipos correctos (@Query espera Strings)
         try {
-            val response = pollService.createPoll(titleString, optionStrings, imageParts)
+            val response = if (imageParts.isEmpty()) {
+                pollService.createPollSimple(title, optionStrings)
+            } else {
+                pollService.createPollWithImages(title, optionStrings, imageParts)
+            }
 
             if (response.isSuccessful) {
                 android.util.Log.i("PollRepository", "Poll created successfully!")
@@ -82,6 +95,16 @@ class PollRepository @Inject constructor(
         } catch (e: Exception) {
             android.util.Log.e("PollRepository", "Exception: ${e.message}")
         }
+    }
+
+    private fun uriToFile(context: Context, uri: Uri): File? {
+        val file = File(context.cacheDir, "upload_${System.currentTimeMillis()}.jpg")
+        return try {
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                file.outputStream().use { output -> input.copyTo(output) }
+            }
+            file
+        } catch (e: Exception) { null }
     }
 
     suspend fun updatePoll(id: String, title: String, isOpen: Boolean, options: List<String>?): Response<PollOutput> {

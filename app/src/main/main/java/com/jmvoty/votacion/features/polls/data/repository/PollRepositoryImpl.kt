@@ -24,6 +24,7 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import retrofit2.HttpException
+import retrofit2.Response
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -103,18 +104,13 @@ class PollRepositoryImpl @Inject constructor(
     override suspend fun createPoll(title: String, options: List<OptionDraft>) {
         android.util.Log.i("DEBUG_REPO", "Preparando encuesta: $title")
 
-        // 1. Título y Opciones: ¡YA NO SON RequestBody!
-        // Solo necesitamos los Strings puros para enviarlos por @Query
         val titleString = title
-        val optionStrings = options.joinToString(",") { it.text } // Resulta en "Go,Python"
+        val optionStrings = options.joinToString(",") { it.text }
 
-        // 2. Imágenes: Siguen siendo MultipartBody.Part (esto está perfecto)
         val imageParts = options.mapIndexed { index, draft ->
             draft.imageUri?.let { uri ->
                 val file = uriToFile(this.context, uri) ?: return@let null
                 val requestFile = file.asRequestBody("image/*".toMediaTypeOrNull())
-
-                // El nombre de la llave debe ser "images"
                 MultipartBody.Part.createFormData("images", file.name, requestFile)
             }
         }.filterNotNull()
@@ -123,14 +119,21 @@ class PollRepositoryImpl @Inject constructor(
         android.util.Log.d("DEBUG_REPO", "Enviando Opciones: $optionStrings")
         android.util.Log.d("DEBUG_REPO", "Total imágenes: ${imageParts.size}")
 
-        // 3. Llamada al servicio
-        // Ahora pasamos Strings y la lista de Partes
-        val response = pollService.createPoll(titleString, optionStrings, imageParts)
+        try {
+            val response: Response<Unit> = if (imageParts.isEmpty()) {
+                pollService.createPollSimple(titleString, optionStrings)
+            } else {
+                pollService.createPollWithImages(titleString, optionStrings, imageParts)
+            }
 
-        if (response.isSuccessful) {
-            android.util.Log.i("DEBUG_REPO", "¡Éxito total!")
-        } else {
-            android.util.Log.e("DEBUG_REPO", "Error: ${response.code()} - ${response.errorBody()?.string()}")
+            if (response.isSuccessful) {
+                android.util.Log.i("DEBUG_REPO", "¡Éxito total!")
+            } else {
+                android.util.Log.e("DEBUG_REPO", "Error: ${response.code()} - ${response.errorBody()?.string()}")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("DEBUG_REPO", "Excepción al crear encuesta: ${e.message}")
+            throw e
         }
     }
 
@@ -153,7 +156,6 @@ class PollRepositoryImpl @Inject constructor(
 
     override suspend fun castVote(pollId: String, optionId: String) {
         pollService.castVote(pollId, optionId)
-        // Opcional: podrías refrescar aquí también si quieres datos exactos del servidor tras votar
     }
 
     override suspend fun savePendingVote(pollId: String, optionId: String) {

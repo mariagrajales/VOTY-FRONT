@@ -45,7 +45,12 @@ class CreatePollWorker @AssistedInject constructor(
             android.util.Log.d("DEBUG_VOTACION", "Enviando a API: $combinedOptions")
 
             // 3. Llamada a la API (Asegúrate que coincida con el nombre de la variable 'combinedOptions')
-            val response = pollService.createPoll(titleString, combinedOptions, imageParts)
+            val response = if (imageParts.isEmpty()) {
+
+                pollService.createPollSimple(titleString, combinedOptions)
+            } else {
+                pollService.createPollWithImages(titleString, combinedOptions, imageParts)
+            }
 
             if (response.isSuccessful) {
                 android.util.Log.d("DEBUG_VOTACION", "¡Logrado! Servidor respondió: ${response.code()}")

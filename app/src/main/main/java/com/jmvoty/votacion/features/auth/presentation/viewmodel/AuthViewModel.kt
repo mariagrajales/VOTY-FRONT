@@ -39,7 +39,12 @@ class AuthViewModel @Inject constructor(
     private fun checkAuthStatus() {
         viewModelScope.launch {
             checkAuthUseCase().collect { isAuthenticated ->
-                _uiState.update { it.copy(isAuthenticated = isAuthenticated) }
+                _uiState.update { 
+                    it.copy(
+                        isAuthenticated = isAuthenticated,
+                        isCheckingAuth = false
+                    ) 
+                }
             }
         }
     }
@@ -103,7 +108,10 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             pollSocketService.disconnect()
             logoutUseCase()
-            _uiState.update { AuthUiState().copy(isAuthenticated = false) } // Reset completo del estado
+            _uiState.update { AuthUiState().copy(
+                isAuthenticated = false,
+                isCheckingAuth = false
+            ) } // Reset completo del estado
         }
     }
 }
